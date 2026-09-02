@@ -55,7 +55,8 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
             partNumber: item.item,
             scheduledQty: item.scheduledQty,
             earliestWOStart: item.earliestWOStart || 'N/A',
-            woNumbers: hasValidNum ? woNum.trim() : `WO-${cleanPart}-${String(i + 1).padStart(2, '0')}`
+            woNumbers: hasValidNum ? woNum.trim() : `WO-${cleanPart}-${String(i + 1).padStart(2, '0')}`,
+            status: 'ERP System Schedule'
           };
         })
       : [];
