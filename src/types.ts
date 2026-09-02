@@ -53,9 +53,12 @@ export interface ProcessedPriorityItem {
   // Custom Calculated Fields
   coverageBalance: number;
   coverageStatus: 'Covered' | 'Need More WOs';
+  hasPartialWO: boolean; // true if balance is negative but item has an existing WO
+  shortfallWOQty: number; // Qty needed to raise in a new WO to cover shortfall
   
   // Advanced Insights
   timingConflict: boolean; // true if WO start date is after required date
+  delayDays: number; // Number of days WO completion/start is after required ship date
   urgencyLevel: 'Overdue' | 'Critical (<= 7d)' | 'Upcoming (<= 14d)' | 'Normal';
   
   // Raw items grouped under this SKU

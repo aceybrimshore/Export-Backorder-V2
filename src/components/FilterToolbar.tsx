@@ -16,6 +16,7 @@ interface FilterToolbarProps {
   onFilterChange: (updated: Partial<FilterSettings>) => void;
   shortageCount: number;
   coveredCount: number;
+  lateCount?: number;
   totalCount: number;
   currentThemeId: ThemeId;
 }
@@ -25,6 +26,7 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
   onFilterChange,
   shortageCount,
   coveredCount,
+  lateCount = 0,
   totalCount,
   currentThemeId
 }) => {
@@ -99,15 +101,41 @@ export const FilterToolbar: React.FC<FilterToolbarProps> = ({
             </span>
           </button>
           <button
-            onClick={() => onFilterChange({ coverageFilter: 'COVERED' })}
+            onClick={() => onFilterChange({ coverageFilter: 'COVERED', timingConflictFilter: 'ALL' })}
             className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all ${
-              filters.coverageFilter === 'COVERED'
+              filters.coverageFilter === 'COVERED' && filters.timingConflictFilter === 'ALL'
                 ? 'bg-emerald-600 text-white font-bold shadow-xs'
                 : isLight ? 'text-slate-600 hover:text-slate-900' : 'opacity-70 hover:opacity-100'
             }`}
           >
             Covered
             <span className="text-[10px] opacity-80">({coveredCount})</span>
+          </button>
+          <button
+            onClick={() => {
+              if (filters.timingConflictFilter === 'CONFLICT_ONLY') {
+                onFilterChange({ timingConflictFilter: 'ALL' });
+              } else {
+                onFilterChange({ timingConflictFilter: 'CONFLICT_ONLY', coverageFilter: 'ALL' });
+              }
+            }}
+            className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all ${
+              filters.timingConflictFilter === 'CONFLICT_ONLY'
+                ? 'bg-rose-600 text-white font-bold shadow-xs'
+                : isLight ? 'text-rose-700 hover:text-rose-900 font-bold' : 'text-rose-400 hover:text-rose-300 font-bold'
+            }`}
+            title="Filter to orders that will miss Required Ship Date due to Work Order schedule delay"
+          >
+            <span>Late WOs</span>
+            <span
+              className={`px-1.5 py-0.2 text-[10px] rounded-full font-bold ${
+                filters.timingConflictFilter === 'CONFLICT_ONLY'
+                  ? 'bg-slate-950 text-rose-300'
+                  : isLight ? 'bg-rose-200 text-rose-900' : 'bg-rose-950/80 text-rose-300'
+              }`}
+            >
+              {lateCount}
+            </span>
           </button>
         </div>
 

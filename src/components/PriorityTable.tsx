@@ -43,6 +43,7 @@ export type TableColumnKey =
   | 'woQty'
   | 'balance'
   | 'status'
+  | 'scheduleDelay'
   | 'actions';
 
 type SortColumn =
@@ -56,7 +57,8 @@ type SortColumn =
   | 'woSchedule'
   | 'woQty'
   | 'balance'
-  | 'status';
+  | 'status'
+  | 'scheduleDelay';
 
 const DEFAULT_WIDTHS_COMPACT: Record<TableColumnKey, number> = {
   priority: 56,
@@ -70,6 +72,7 @@ const DEFAULT_WIDTHS_COMPACT: Record<TableColumnKey, number> = {
   woQty: 90,
   balance: 80,
   status: 120,
+  scheduleDelay: 135,
   actions: 80
 };
 
@@ -85,6 +88,7 @@ const DEFAULT_WIDTHS_COMFORTABLE: Record<TableColumnKey, number> = {
   woQty: 100,
   balance: 95,
   status: 140,
+  scheduleDelay: 155,
   actions: 95
 };
 
@@ -100,6 +104,7 @@ const MIN_WIDTHS: Record<TableColumnKey, number> = {
   woQty: 65,
   balance: 65,
   status: 85,
+  scheduleDelay: 90,
   actions: 65
 };
 
@@ -157,7 +162,8 @@ export const PriorityTable: React.FC<PriorityTableProps> = ({
       boValue: true,
       shipDate: true,
       woQty: true,
-      customer: true
+      customer: true,
+      scheduleDelay: true
     };
   });
 
@@ -330,6 +336,12 @@ export const PriorityTable: React.FC<PriorityTableProps> = ({
         case 'status':
           res = a.coverageStatus.localeCompare(b.coverageStatus);
           break;
+        case 'scheduleDelay': {
+          const delayA = a.timingConflict ? a.delayDays : (a.coverageStatus === 'Need More WOs' ? 9999 : 0);
+          const delayB = b.timingConflict ? b.delayDays : (b.coverageStatus === 'Need More WOs' ? 9999 : 0);
+          res = delayB - delayA;
+          break;
+        }
       }
       return sortDir === 'asc' ? res : -res;
     });
@@ -548,6 +560,15 @@ export const PriorityTable: React.FC<PriorityTableProps> = ({
                     />
                     <span>Customer Details</span>
                   </label>
+                  <label className="flex items-center gap-2 px-2 py-1 hover:bg-black/5 dark:hover:bg-white/5 rounded cursor-pointer text-xs font-semibold text-rose-600 dark:text-rose-400">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.scheduleDelay}
+                      onChange={() => toggleColumn('scheduleDelay')}
+                      className="rounded text-rose-600 focus:ring-0"
+                    />
+                    <span>Schedule / Delay Indicator</span>
+                  </label>
 
                   {hasCustomWidths && (
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
@@ -730,11 +751,27 @@ export const PriorityTable: React.FC<PriorityTableProps> = ({
                 title="Click to sort by Coverage Status. Drag right border to resize."
               >
                 <div className="flex items-center justify-center gap-1 pr-2">
-                  <span className="truncate">Status</span>
+                  <span className="truncate">Qty Status</span>
                   {renderSortIcon('status')}
                 </div>
                 {renderResizeHandle('status')}
               </th>
+
+              {/* Schedule Delay / On-Time */}
+              {visibleColumns.scheduleDelay && (
+                <th
+                  style={{ width: `${columnWidths.scheduleDelay}px`, minWidth: `${MIN_WIDTHS.scheduleDelay}px` }}
+                  onClick={() => handleHeaderClick('scheduleDelay')}
+                  className={`${isCompact ? 'py-2.5 px-2' : 'py-3.5 px-3'} relative text-center whitespace-nowrap cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group`}
+                  title="Click to sort by Schedule Delay. Identifies items that will miss Required Ship Date."
+                >
+                  <div className="flex items-center justify-center gap-1 pr-2">
+                    <span className="truncate text-rose-700 dark:text-rose-400">Schedule / Delay</span>
+                    {renderSortIcon('scheduleDelay')}
+                  </div>
+                  {renderResizeHandle('scheduleDelay')}
+                </th>
+              )}
 
               {/* Actions */}
               <th
@@ -926,6 +963,22 @@ export const PriorityTable: React.FC<PriorityTableProps> = ({
                         No WO Scheduled
                       </span>
                     )}
+
+                    {/* Shortfall Indicator when WO exists but balance is in minus */}
+                    {row.hasPartialWO && (
+                      <button
+                        onClick={() => onOpenSimulateWo(row)}
+                        className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold border transition-all hover:scale-105 active:scale-95 ${
+                          isLight
+                            ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300'
+                            : 'bg-amber-950/80 hover:bg-amber-900 text-amber-300 border-amber-700/80'
+                        }`}
+                        title={`Work Orders cover ${row.scheduledQty} units, but demand is ${row.totalBOQty} units. Click to raise a top-up WO for +${row.shortfallWOQty} units.`}
+                      >
+                        <AlertCircle className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span>Shortfall: -{row.shortfallWOQty} (Raise WO)</span>
+                      </button>
+                    )}
                   </td>
 
                   {/* Scheduled WO Qty (in comfortable mode) */}
@@ -952,41 +1005,105 @@ export const PriorityTable: React.FC<PriorityTableProps> = ({
 
                   {/* Coverage Status Badge */}
                   <td className={`${isCompact ? 'py-2 px-2' : 'py-3.5 px-3'} text-center align-middle whitespace-nowrap overflow-hidden`}>
-                    {row.coverageStatus === 'Need More WOs' ? (
-                      <span className={`inline-flex items-center justify-center gap-1 ${isCompact ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-xs'} font-bold rounded-full shadow-2xs border whitespace-nowrap ${
-                        isLight
-                          ? 'bg-amber-100 text-amber-900 border-amber-300'
-                          : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                      }`}>
-                        <AlertCircle className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} flex-shrink-0`} />
-                        <span>{isCompact ? 'Need WOs' : 'Need More WOs'}</span>
-                      </span>
+                    {row.hasPartialWO ? (
+                      <button
+                        onClick={() => onOpenSimulateWo(row)}
+                        className={`inline-flex items-center justify-center gap-1 ${isCompact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'} font-extrabold rounded-full shadow-2xs border whitespace-nowrap transition-all hover:scale-105 active:scale-95 ${
+                          isLight
+                            ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-400'
+                            : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/50'
+                        }`}
+                        title={`Has WO supplying ${row.scheduledQty} units, but needs an additional WO for +${row.shortfallWOQty} units shortfall. Click to raise!`
+                        }
+                      >
+                        <AlertCircle className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-amber-600 dark:text-amber-400 shrink-0`} />
+                        <span>{isCompact ? `Raise +${row.shortfallWOQty}` : `Raise WO (-${row.shortfallWOQty})`}</span>
+                      </button>
+                    ) : row.coverageBalance < 0 ? (
+                      <button
+                        onClick={() => onOpenSimulateWo(row)}
+                        className={`inline-flex items-center justify-center gap-1 ${isCompact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'} font-bold rounded-full shadow-2xs border whitespace-nowrap transition-all hover:scale-105 active:scale-95 ${
+                          isLight
+                            ? 'bg-rose-100 hover:bg-rose-200 text-rose-900 border-rose-300'
+                            : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border-rose-500/40'
+                        }`}
+                        title={`No work orders scheduled. Click to raise a WO for +${row.totalBOQty} units.`}
+                      >
+                        <AlertCircle className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-rose-600 dark:text-rose-400 shrink-0`} />
+                        <span>{isCompact ? `No WO` : `No WO (Raise +${row.totalBOQty})`}</span>
+                      </button>
                     ) : (
                       <span className={`inline-flex items-center justify-center gap-1 ${isCompact ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-xs'} font-bold rounded-full shadow-2xs border whitespace-nowrap ${
                         isLight
                           ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                           : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                       }`}>
-                        <CheckCircle className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} flex-shrink-0`} />
+                        <CheckCircle className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-emerald-600 dark:text-emerald-400 flex-shrink-0`} />
                         <span>Covered</span>
                       </span>
                     )}
                   </td>
+
+                  {/* Schedule Delay / On-Time Indicator */}
+                  {visibleColumns.scheduleDelay && (
+                    <td className={`${isCompact ? 'py-2 px-2' : 'py-3.5 px-3'} text-center align-middle whitespace-nowrap overflow-hidden`}>
+                      {row.timingConflict ? (
+                        <button
+                          onClick={() => onSelectItem(row)}
+                          className={`inline-flex items-center justify-center gap-1 ${isCompact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'} font-bold rounded-full shadow-xs border whitespace-nowrap transition-all hover:scale-105 active:scale-95 ${
+                            isLight
+                              ? 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
+                              : 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
+                          }`}
+                          title={`Req Ship Date: ${row.earliestStockRequiredBy} vs WO Start Date: ${row.earliestWOStart}. Click to investigate why it's late!`}
+                        >
+                          <AlertTriangle className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-rose-600 dark:text-rose-400 shrink-0 animate-pulse`} />
+                          <span>Late (+{row.delayDays}d)</span>
+                        </button>
+                      ) : row.coverageStatus === 'Need More WOs' ? (
+                        <span className={`inline-flex items-center justify-center gap-1 ${isCompact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'} font-semibold rounded-full border whitespace-nowrap opacity-80 ${
+                          isLight
+                            ? 'bg-slate-100 text-slate-600 border-slate-300'
+                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                        }`}>
+                          <Clock className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-amber-500 shrink-0`} />
+                          <span>No WO</span>
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center justify-center gap-1 ${isCompact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'} font-bold rounded-full border whitespace-nowrap ${
+                          isLight
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60'
+                        }`}>
+                          <CheckCircle className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-emerald-600 dark:text-emerald-400 shrink-0`} />
+                          <span>On-Time</span>
+                        </span>
+                      )}
+                    </td>
+                  )}
 
                   {/* Quick Action Buttons */}
                   <td className={`${isCompact ? 'py-2 px-1.5' : 'py-3.5 px-3'} text-center align-middle whitespace-nowrap overflow-hidden`}>
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => onOpenSimulateWo(row)}
-                        className={`p-1 sm:px-1.5 sm:py-1 rounded-md border font-semibold text-[10px] sm:text-xs flex items-center gap-0.5 transition-all ${
-                          isLight
+                        className={`p-1 sm:px-2 sm:py-1 rounded-md border font-extrabold text-[10px] sm:text-xs flex items-center gap-1 transition-all ${
+                          row.hasPartialWO
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-xs'
+                            : isLight
                             ? 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 hover:border-blue-500 hover:text-blue-600 shadow-2xs'
                             : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 hover:border-amber-500 hover:text-amber-400'
                         }`}
-                        title="Simulate adding new Work Order"
+                        title={
+                          row.hasPartialWO
+                            ? `Raise Work Order for shortfall (+${row.shortfallWOQty} units)`
+                            : 'Simulate adding new Work Order'
+                        }
                       >
-                        <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                        <span className="hidden sm:inline">WO</span>
+                        <Plus className={`w-3 h-3 shrink-0 ${row.hasPartialWO ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
+                        <span className="hidden sm:inline">
+                          {row.hasPartialWO ? `+${row.shortfallWOQty} WO` : 'WO'}
+                        </span>
                       </button>
 
                       <button

@@ -154,6 +154,23 @@ export const SAMPLE_BACKORDERS: RawBackorderItem[] = [
     stockRequiredBy: '2026-08-15',
     expectedShipDate: '2026-08-17'
   },
+  {
+    id: 'bo-rr1500',
+    customerName: 'Taubenreuther Gmbh',
+    salesOrderNumber: 'SO-EXPORT-9500',
+    orderDate: '2026-07-20',
+    description: '1500MM RECONN-DECK BAR KIT - SINGLE',
+    item: 'RR1500',
+    location: 'Sydney Distribution Centre',
+    status: 'Approved',
+    backOrderQty: 94,
+    backOrderValue: 7900.00,
+    brand: 'Rhino-Rack',
+    type: 'Assembly/Bill of Materials',
+    netstockIndicator: 'Stocked',
+    stockRequiredBy: '2026-08-28',
+    expectedShipDate: '2026-08-28'
+  },
   // Row that will be filtered OUT by Power Query logic (for testing filter fidelity)
   {
     id: 'bo-10',
@@ -221,6 +238,12 @@ export const SAMPLE_WORK_ORDERS: RawWorkOrder[] = [
     scheduledQty: 80, // Covered! BO is 80
     earliestWOStart: '2026-08-02',
     woNumbers: 'WO-2026-9055'
+  },
+  {
+    partNumber: 'RR1500',
+    scheduledQty: 208, // Qty Covered (+114)
+    earliestWOStart: '2026-09-25', // Scheduled 25/09/2026, required 28/08/2026 -> 28 Days Late!
+    woNumbers: 'WO0090273, WO0089478'
   }
   // RR-KYK-570 and RR-LDR-A3 have NO work orders in schedule summary -> missing/null -> coverage balance = -total BO Qty
 ];

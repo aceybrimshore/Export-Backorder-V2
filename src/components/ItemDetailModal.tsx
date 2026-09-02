@@ -127,7 +127,115 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Section 1: Underlying Sales Orders & Export Customers */}
+        {/* Delay Investigation & Root Cause Analysis */}
+        {item.timingConflict && (
+          <div className="bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 rounded-xl p-4 space-y-2.5">
+            <div className="flex items-center justify-between gap-2 border-b border-rose-200 dark:border-rose-800/80 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-rose-600 text-white rounded-lg">
+                  <AlertTriangle className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-rose-900 dark:text-rose-200 uppercase tracking-wide">
+                    Delivery Schedule Delay Investigation
+                  </h3>
+                  <p className="text-[11px] text-rose-700 dark:text-rose-300">
+                    Order is covered by work order quantity ({item.coverageBalance >= 0 ? `+${item.coverageBalance}` : item.coverageBalance} balance), but scheduled completion will miss customer required ship date!
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-rose-600 text-white font-mono shadow-xs shrink-0">
+                +{item.delayDays} Days Late
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <div className="bg-white/90 dark:bg-slate-900/90 p-2.5 rounded-lg border border-rose-200 dark:border-rose-900">
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">Required Ship Date</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
+                  {item.earliestStockRequiredBy}
+                </span>
+              </div>
+              <div className="bg-white/90 dark:bg-slate-900/90 p-2.5 rounded-lg border border-rose-200 dark:border-rose-900">
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">Earliest Scheduled WO</span>
+                <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">
+                  {item.earliestWOStart || 'N/A'}
+                </span>
+              </div>
+              <div className="bg-white/90 dark:bg-slate-900/90 p-2.5 rounded-lg border border-rose-200 dark:border-rose-900">
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">Linked Factory WOs</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white text-xs truncate block" title={item.woNumbers}>
+                  {item.woNumbers}
+                </span>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-rose-950 dark:text-rose-200 bg-rose-100/80 dark:bg-rose-900/50 p-2.5 rounded-lg border border-rose-200 dark:border-rose-800 flex items-start gap-2">
+              <span className="font-bold shrink-0 text-rose-800 dark:text-rose-300">Root Cause Analysis:</span>
+              <span>
+                Work orders ({item.woNumbers}) are scheduled for production starting <strong>{item.earliestWOStart}</strong>, which is <strong>{item.delayDays} days after</strong> customer {item.customerName ? `(${item.customerName})` : ''} required ship date of <strong>{item.earliestStockRequiredBy}</strong>. Expedite factory schedule or simulate an earlier rush Work Order.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Shortfall & Work Order Requisition Alert */}
+        {item.coverageBalance < 0 && (
+          <div className={`border-2 rounded-xl p-4 space-y-2.5 ${
+            item.hasPartialWO
+              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 dark:border-amber-700'
+              : 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800'
+          }`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className={`p-1.5 rounded-lg text-white ${
+                  item.hasPartialWO ? 'bg-amber-600' : 'bg-rose-600'
+                }`}>
+                  <AlertCircle className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-bold uppercase tracking-wide ${
+                    item.hasPartialWO
+                      ? 'text-amber-950 dark:text-amber-200'
+                      : 'text-rose-900 dark:text-rose-200'
+                  }`}>
+                    {item.hasPartialWO
+                      ? `Partial Work Order Existing — Raise WO for Shortfall (-${item.shortfallWOQty} Units)`
+                      : `No Work Order Scheduled — Need New WO (+${item.totalBOQty} Units)`}
+                  </h3>
+                  <p className={`text-[11px] ${
+                    item.hasPartialWO
+                      ? 'text-amber-800 dark:text-amber-300'
+                      : 'text-rose-700 dark:text-rose-300'
+                  }`}>
+                    {item.hasPartialWO
+                      ? `Existing Work Order (${item.woNumbers}) covers ${item.scheduledQty} units, but total demand is ${item.totalBOQty} units. Raise an additional Work Order to cover the shortfall!`
+                      : `Zero Work Orders are currently scheduled in the factory system for this required backorder.`}
+                  </p>
+                </div>
+              </div>
+
+              {onOpenSimulateWo && (
+                <button
+                  onClick={() => onOpenSimulateWo(item)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all shrink-0 active:scale-95 ${
+                    item.hasPartialWO
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                      : 'bg-rose-600 hover:bg-rose-700 text-white'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>
+                    {item.hasPartialWO
+                      ? `Raise Shortfall WO (+${item.shortfallWOQty})`
+                      : `Raise Full WO (+${item.totalBOQty})`}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-2">
             <Building2 className="w-4 h-4 text-amber-500" />

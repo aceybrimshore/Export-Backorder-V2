@@ -98,6 +98,8 @@ export default function App() {
     timestamp: string;
   } | null>(null);
 
+  const [lastSavedTime, setLastSavedTime] = useState<Date | null>(new Date());
+
   // Auto-dismiss upload toast after 7s
   useEffect(() => {
     if (uploadToast) {
@@ -126,6 +128,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('planner_backorders', JSON.stringify(backorders));
+      setLastSavedTime(new Date());
     } catch (e) {
       console.warn('Failed to save backorders to localStorage:', e);
     }
@@ -134,6 +137,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('planner_work_orders', JSON.stringify(workOrders));
+      setLastSavedTime(new Date());
     } catch (e) {
       console.warn('Failed to save work orders to localStorage:', e);
     }
@@ -142,6 +146,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('planner_simulated_wos', JSON.stringify(simulatedWOs));
+      setLastSavedTime(new Date());
     } catch (e) {
       console.warn('Failed to save simulated WOs to localStorage:', e);
     }
@@ -150,6 +155,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('planner_filters', JSON.stringify(filters));
+      setLastSavedTime(new Date());
     } catch (e) {
       console.warn('Failed to save filters to localStorage:', e);
     }
@@ -158,6 +164,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('planner_user_custom_ranks', JSON.stringify(userCustomRanks));
+      setLastSavedTime(new Date());
     } catch (e) {
       console.warn('Failed to save custom ranks to localStorage:', e);
     }
@@ -211,6 +218,7 @@ export default function App() {
   // Counts
   const totalShortages = processedItems.filter(i => i.coverageStatus === 'Need More WOs').length;
   const totalCovered = processedItems.filter(i => i.coverageStatus === 'Covered').length;
+  const totalLate = processedItems.filter(i => i.timingConflict).length;
 
   // Handlers
   const handleResetToSample = () => {
@@ -375,12 +383,28 @@ export default function App() {
         {/* KPI Metric Cards */}
         <KPICards items={processedItems} currentThemeId={currentThemeId} />
 
+        {/* Auto-Save & Filter Header Bar */}
+        <div className="flex items-center justify-between px-1 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Priority Planning Board
+            </span>
+            {lastSavedTime && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Auto-saved to browser</span>
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* Filter Toolbar */}
         <FilterToolbar
           filters={filters}
           onFilterChange={handleFilterChange}
           shortageCount={totalShortages}
           coveredCount={totalCovered}
+          lateCount={totalLate}
           totalCount={processedItems.length}
           currentThemeId={currentThemeId}
         />

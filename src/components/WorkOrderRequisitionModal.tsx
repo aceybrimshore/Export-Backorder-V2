@@ -161,7 +161,12 @@ export const WorkOrderRequisitionModal: React.FC<WorkOrderRequisitionModalProps>
                           {s.totalBOQty}
                         </td>
                         <td className="py-2 px-3 text-right font-mono text-slate-600 dark:text-slate-400">
-                          {s.scheduledQty}
+                          <div>{s.scheduledQty}</div>
+                          {s.hasPartialWO && (
+                            <span className="inline-block text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border border-amber-300">
+                              Partial WO
+                            </span>
+                          )}
                         </td>
                         <td className="py-2 px-3 text-right font-mono font-bold text-amber-600 dark:text-amber-400 text-sm bg-amber-50/50 dark:bg-amber-950/30">
                           {Math.abs(s.coverageBalance)}

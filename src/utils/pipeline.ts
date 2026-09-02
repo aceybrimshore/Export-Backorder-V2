@@ -155,10 +155,6 @@ export function processPipeline(
       .filter((d): d is Date => d !== null);
     requiredDateObjs.sort((a, b) => a.getTime() - b.getTime());
 
-    const earliestStockRequiredBy = requiredDateObjs.length > 0
-      ? formatDisplayDate(requiredDateObjs[0])
-      : 'N/A';
-
     // Earliest Order Date (Sales Order Date)
     const orderDateObjs = rows
       .map(r => parseFlexibleDate(r.orderDate))
@@ -174,6 +170,13 @@ export function processPipeline(
       .map(r => parseFlexibleDate(r.expectedShipDate))
       .filter((d): d is Date => d !== null);
     shipDateObjs.sort((a, b) => a.getTime() - b.getTime());
+
+    // Combined target required/ship dates
+    const targetDateObjs = [...requiredDateObjs, ...shipDateObjs].sort((a, b) => a.getTime() - b.getTime());
+
+    const earliestStockRequiredBy = requiredDateObjs.length > 0
+      ? formatDisplayDate(requiredDateObjs[0])
+      : (targetDateObjs.length > 0 ? formatDisplayDate(targetDateObjs[0]) : 'N/A');
 
     const earliestShipDate = shipDateObjs.length > 0
       ? formatDisplayDate(shipDateObjs[0])
@@ -219,17 +222,25 @@ export function processPipeline(
     const coverageBalance = scheduledQty - totalBOQty;
     const coverageStatus: 'Covered' | 'Need More WOs' =
       coverageBalance < 0 ? 'Need More WOs' : 'Covered';
+    const hasPartialWO = coverageBalance < 0 && scheduledQty > 0;
+    const shortfallWOQty = coverageBalance < 0 ? Math.abs(coverageBalance) : 0;
 
-    // Timing Conflict check: WO start date is after Stock Required By date
+    // Timing Conflict check: WO start date is after Required / Ship date
     let timingConflict = false;
-    if (woStartObjs.length > 0 && requiredDateObjs.length > 0) {
-      timingConflict = woStartObjs[0].getTime() > requiredDateObjs[0].getTime();
+    let delayDays = 0;
+    if (woStartObjs.length > 0 && targetDateObjs.length > 0) {
+      const woTime = woStartObjs[0].getTime();
+      const targetTime = targetDateObjs[0].getTime();
+      if (woTime > targetTime) {
+        timingConflict = true;
+        delayDays = Math.max(1, Math.ceil((woTime - targetTime) / (1000 * 60 * 60 * 24)));
+      }
     }
 
-    // Urgency calculation based on required date vs today
+    // Urgency calculation based on target required date vs today
     let urgencyLevel: ProcessedPriorityItem['urgencyLevel'] = 'Normal';
-    if (requiredDateObjs.length > 0) {
-      const reqDate = new Date(requiredDateObjs[0].getTime());
+    if (targetDateObjs.length > 0) {
+      const reqDate = new Date(targetDateObjs[0].getTime());
       reqDate.setHours(0, 0, 0, 0);
       const diffTime = reqDate.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -260,7 +271,10 @@ export function processPipeline(
       woNumbers,
       coverageBalance,
       coverageStatus,
+      hasPartialWO,
+      shortfallWOQty,
       timingConflict,
+      delayDays,
       urgencyLevel,
       underlyingOrders: rows,
       underlyingWorkOrders: matchingWOList
