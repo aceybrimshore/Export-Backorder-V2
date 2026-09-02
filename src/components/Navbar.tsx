@@ -53,8 +53,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <h1 className="text-sm sm:text-base md:text-lg font-bold tracking-tight leading-snug whitespace-nowrap">
                   Export Priority &amp; WO Planner
                 </h1>
-                <span className={`hidden sm:inline-block text-[10px] font-bold uppercase tracking-wider ${currentTheme.badgeBg} ${currentTheme.badgeText} border ${currentTheme.badgeBorder} px-2 py-0.5 rounded-full shrink-0`}>
-                  Power Query
+                <span className={`inline-block text-[10px] font-extrabold uppercase tracking-wider ${currentTheme.badgeBg} ${currentTheme.badgeText} border ${currentTheme.badgeBorder} px-2 py-0.5 rounded-full shrink-0 shadow-2xs`}>
+                  v2.0
                 </span>
               </div>
               <p className="text-xs opacity-80 hidden md:block whitespace-nowrap leading-tight mt-0.5">
